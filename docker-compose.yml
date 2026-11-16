@@ -1,0 +1,14 @@
+services:
+  dashboard:
+    build: .
+    container_name: docker-registry-dashboard
+    ports:
+      - "7777:3000"
+    environment:
+      - REGISTRY_URL=http://host.docker.internal:5001
+      - NEXT_PUBLIC_REGISTRY_URL=http://host.docker.internal:5001
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # Host Docker socket
+    user: root
+    restart: unless-stopped
+# ref: 0628fc35cff0fd6bf376c5053fabe28a⁠​‍⁠​​‌‍​‍‍​⁠⁠⁠​​⁠‌‌⁠​⁠⁠⁠⁠​​⁠⁠⁠‌‌‍‍⁠⁠⁠​⁠‌⁠‌‍⁠​‌‌​​‌‌​⁠⁠⁠‍‍‍⁠⁠‍​‍‍​‍‍
