@@ -1,43 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
-// Local Docker repos are stored in /Volumes/Depo/docker-repo⁠​‍⁠‌​‌⁠⁠‍‍‍​‍⁠⁠​‍​⁠⁠​‍‍​⁠⁠​​⁠⁠​‌​⁠​​‍⁠‍​​‍⁠⁠‍​‌‌‌⁠​​‍‌​⁠‌​⁠‌⁠‌⁠​⁠‌⁠
-const WORKSPACE_ROOT = '/Volumes/Depo/docker-repo';
+// Local Docker repos live here; override with WORKSPACE_ROOT.
+const WORKSPACE_ROOT = path.resolve(process.env.WORKSPACE_ROOT || '/Volumes/Depo/docker-repo');
+const REPO = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { repo } = body;
-
-    if (!repo) {
-      return NextResponse.json({ error: 'Repo name required' }, { status: 400 });
+    const { repo } = await request.json();
+    if (typeof repo !== 'string' || !REPO.test(repo)) {
+      return NextResponse.json({ error: 'Invalid repository name' }, { status: 400 });
     }
 
-    // Look for the repo folder directly inside docker-repo
-    const targetPath = path.join(WORKSPACE_ROOT, repo);
-
-    // Check if path exists
-    if (!fs.existsSync(targetPath)) {
-        console.log(`Path not found: ${targetPath}`);
-        return NextResponse.json({ error: `Folder not found: ${targetPath}` }, { status: 404 });
+    const targetPath = path.resolve(WORKSPACE_ROOT, repo);
+    if (path.dirname(targetPath) !== WORKSPACE_ROOT || !fs.existsSync(targetPath)) {
+      return NextResponse.json({ error: 'Folder not found' }, { status: 404 });
     }
 
-    console.log(`Opening folder: ${targetPath}`);
-    
-    // MacOS command to open folder
-    exec(`open "${targetPath}"`, (error) => {
-        if (error) {
-            console.error(`exec error: ${error}`);
-        }
+    // macOS: reveal the folder in Finder (no shell involved)
+    execFile('open', [targetPath], (error) => {
+      if (error) console.error('[open-folder]', error.message);
     });
-
-    return NextResponse.json({ success: true, path: targetPath });
-
-  } catch (error: any) {
-    console.error('Open folder error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: 'Unexpected error' }, { status: 500 });
   }
 }
 // ref: 47ea2f23ca3c3c4c2e0be15c24d37737⁠​‍⁠‌​‌⁠⁠‍‍‍​‍⁠⁠​‍​⁠⁠​‍‍​⁠⁠​​⁠⁠​‌​⁠​​‍⁠‍​​‍⁠⁠‍​‌‌‌⁠​​‍‌​⁠‌​⁠‌⁠‌⁠​⁠‌⁠

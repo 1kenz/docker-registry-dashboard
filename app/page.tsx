@@ -456,7 +456,7 @@ export default function RegistryPage() {
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2">
                                         <h2 className="font-bold text-white text-lg truncate">{repo}</h2>
-                                        <button onClick={() => fetch('/api/open-folder', { method: 'POST', body: JSON.stringify({ repo }) })} className="p-1 hover:text-blue-400"><FolderOpen size={16} /></button>
+                                        <button onClick={() => fetch('/api/open-folder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ repo }) })} className="p-1 hover:text-blue-400"><FolderOpen size={16} /></button>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1">{descriptions[repo] || 'Local Docker images developed by ikenz'}</p>
                                 </div>

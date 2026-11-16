@@ -1,5 +1,29 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).⁠​‍⁠​​‌⁠‍‌⁠​​⁠​‍⁠⁠​⁠​⁠‍​​​⁠‍​⁠‍‌‍‌⁠⁠​​‍‌‌​‍​‍​​‌​‌​‌⁠​​​‌​⁠⁠‌​‍‍‍‌​‌
 
+## Security model
+
+This dashboard controls the host's Docker daemon through `/var/run/docker.sock`.
+Anyone who can reach its API can run containers on the host, so treat it as a
+local admin tool:
+
+- `docker-compose.yml` publishes it on `127.0.0.1:7777` only. Do not expose it to
+  a network without putting authentication in front of it.
+- The API answers only requests addressed to `localhost`, `127.0.0.1` or a host in
+  `ALLOWED_HOSTS`, and refuses cross-origin and non-JSON writes (`proxy.ts`).
+- Docker commands run without a shell (`execFile`) and every container id, image
+  reference, port mapping and log length is validated first (`lib/docker.ts`).
+- The registry proxy only talks to `REGISTRY_URL`, `NEXT_PUBLIC_REGISTRY_URL` and
+  `REGISTRY_ALLOWED_URLS`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `REGISTRY_URL` | `http://localhost:5001` | Registry the proxy uses |
+| `REGISTRY_ALLOWED_URLS` | — | Extra registries the UI may select (comma-separated) |
+| `ALLOWED_HOSTS` | — | Extra `host:port` values the UI may be opened through |
+| `WORKSPACE_ROOT` | `/Volumes/Depo/docker-repo` | Folder that "Open folder" reveals in Finder |
+
+Run the input-validation tests with `npm test`.
+
 ## Getting Started
 
 First, run the development server:

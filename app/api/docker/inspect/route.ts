@@ -1,35 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { execSync } from 'child_process';
+import { docker, containerRef, errorMessage, InputError } from '@/lib/docker';
 
 export async function POST(request: NextRequest) {
   try {
     const { id } = await request.json();
-    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+    const { stdout } = await docker(['inspect', containerRef(id)]);
+    const info = JSON.parse(stdout)[0];
+    const networks = info.NetworkSettings?.Networks ?? {};
 
-    const data = execSync(`docker inspect ${id}`, { encoding: 'utf8' });
-    const info = JSON.parse(data)[0];
-    
-    // Simplify for UI⁠​‍⁠​⁠​⁠​‍​⁠‍‌‌‍⁠​‍⁠‍⁠‍​‌‌​‍​‌‌‌⁠​⁠‌‍‍‍​‌​​‍‍‍⁠⁠⁠​‍​‍‍​‌‌⁠⁠‍⁠‌‌‌⁠⁠‍⁠
-    const filtered = {
+    // Simplified view for the UI
+    return NextResponse.json({
       Id: info.Id,
       Created: info.Created,
       State: info.State,
       Config: {
-        Env: info.Config.Env,
-        Image: info.Config.Image,
-        Entrypoint: info.Config.Entrypoint,
-        Cmd: info.Config.Cmd,
+        Env: info.Config?.Env,
+        Image: info.Config?.Image,
+        Entrypoint: info.Config?.Entrypoint,
+        Cmd: info.Config?.Cmd,
       },
       NetworkSettings: {
-        IPAddress: info.NetworkSettings.IPAddress || info.NetworkSettings.Networks[Object.keys(info.NetworkSettings.Networks)[0]]?.IPAddress,
-        Ports: info.NetworkSettings.Ports,
+        IPAddress: info.NetworkSettings?.IPAddress || networks[Object.keys(networks)[0]]?.IPAddress,
+        Ports: info.NetworkSettings?.Ports,
       },
-      Mounts: info.Mounts
-    };
-
-    return NextResponse.json(filtered);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+      Mounts: info.Mounts,
+    });
+  } catch (error) {
+    const status = error instanceof InputError ? 400 : 500;
+    return NextResponse.json({ error: errorMessage(error) }, { status });
   }
 }
 // ref: 332396cbb85215cda842afc8a17ed5fb⁠​‍⁠​⁠​⁠​‍​⁠‍‌‌‍⁠​‍⁠‍⁠‍​‌‌​‍​‌‌‌⁠​⁠‌‍‍‍​‌​​‍‍‍⁠⁠⁠​‍​‍‍​‌‌⁠⁠‍⁠‌‌‌⁠⁠‍⁠

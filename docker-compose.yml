@@ -3,10 +3,13 @@ services:
     build: .
     container_name: docker-registry-dashboard
     ports:
-      - "7777:3000"
+      # Loopback only: this container controls the host Docker daemon.
+      - "127.0.0.1:7777:3000"
     environment:
       - REGISTRY_URL=http://host.docker.internal:5001
       - NEXT_PUBLIC_REGISTRY_URL=http://host.docker.internal:5001
+      # Extra hosts the UI may be opened through, e.g. myhost.local:7777
+      - ALLOWED_HOSTS=localhost:7777,127.0.0.1:7777
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock  # Host Docker socket
     user: root

@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const REGISTRY_URL = 'http://localhost:5001';
+const DEFAULT_REGISTRY = process.env.REGISTRY_URL || 'http://localhost:5001';
+
+/**
+ * Registries the UI may pick through the x-registry-url header. Anything else is
+ * refused so the server cannot be used to reach arbitrary addresses (SSRF).
+ * REGISTRY_ALLOWED_URLS (comma-separated) extends the list.
+ */
+function allowedRegistries(): string[] {
+  const urls = [
+    DEFAULT_REGISTRY,
+    process.env.NEXT_PUBLIC_REGISTRY_URL,
+    'http://localhost:5001',
+    'http://127.0.0.1:5001',
+    ...(process.env.REGISTRY_ALLOWED_URLS ?? '').split(','),
+  ];
+  return urls.filter((u): u is string => !!u && !!u.trim()).map((u) => u.trim().replace(/\/$/, ''));
+}
+
+const REGISTRY_PATH = /^v2\/([a-z0-9._\/-]+\/)?(_catalog|tags\/list|manifests\/[A-Za-z0-9_.:-]+|blobs\/sha256:[a-f0-9]{64})?$/;
 
 async function handler(
   request: NextRequest,
@@ -8,14 +26,19 @@ async function handler(
 ) {
   const resolvedParams = await params;
   const pathString = resolvedParams.path.join('/');
-  
-  // Dynamic Registry URL from header, fallback to default⁠​‍⁠‍‌‍​​⁠⁠‍​‍⁠‍⁠‌​‍‌‍‍‌​​‌‍‌‌​‌‌​⁠​‌‌‌⁠‍⁠‍⁠​⁠‍​⁠‍⁠‌​‌‍‌⁠⁠⁠​⁠‌⁠‍​‌‍‍
-  const registryUrl = request.headers.get('x-registry-url') || process.env.REGISTRY_URL || 'http://localhost:5001';
-  
-  // Ensure no trailing slash
-  const baseUrl = registryUrl.replace(/\/$/, '');
-  const url = `${baseUrl}/${pathString}`;
-  
+  if ((pathString !== 'v2' && pathString !== 'v2/' && !REGISTRY_PATH.test(pathString)) || pathString.includes('..')) {
+    return NextResponse.json({ error: 'Unsupported registry path' }, { status: 400 });
+  }
+
+  const requested = (request.headers.get('x-registry-url') || DEFAULT_REGISTRY).replace(/\/$/, '');
+  if (!allowedRegistries().includes(requested)) {
+    return NextResponse.json(
+      { error: 'Registry URL is not allowed. Add it to REGISTRY_ALLOWED_URLS on the server.' },
+      { status: 400 }
+    );
+  }
+  const url = `${requested}/${pathString}`;
+
   console.log(`[Registry Proxy] ${request.method} -> ${url}`);
 
   try {
@@ -56,7 +79,7 @@ async function handler(
     if (digest) response.headers.set('Docker-Content-Digest', digest);
     return response;
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Registry Proxy] Connection Error:', error);
     return NextResponse.json(
       { error: 'Failed to connect to Docker Registry. Is it running on port 5001?' },
